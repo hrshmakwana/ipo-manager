@@ -4,6 +4,15 @@ This guide explains the workflow for using the IPO Investment Manager to perform
 
 > **⚠️ Important Warning:** This version of the application does **not** save your data permanently. All information you enter will be **lost if you refresh the page or close your browser tab**. Please complete all your work in one session and export your report at the end to save it.
 
+[![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)](https://ipo-manager.vercel.app)
+
+## 🚀 Live Demo
+
+You can access the live, deployed version of the application here:
+
+**[Launch IPO Manager](https://ipo-manager.vercel.app)**
+
+
 ### Workflow Steps
 
 1.  **Start Fresh**
