@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,17 @@ import { IPOResultsManager } from "./IPOResultsManager";
 import { FinalReport } from "./FinalReport";
 import { MultiIPOManager } from "./MultiIPOManager";
 import { ConsolidatedParticipantView } from "./ConsolidatedParticipantView";
-import { TrendingUp, Users, Building2, FileText, Plus } from "lucide-react";
+import { 
+  TrendingUp, 
+  Users, 
+  Building2, 
+  FileText, 
+  Plus, 
+  Github, 
+  Linkedin, 
+  Terminal,
+  Heart
+} from "lucide-react";
 import type { DematAccount, IPODetails, Participant, IPOResult } from "./IPODashboard";
 
 export interface MultiIPO {
@@ -20,10 +30,33 @@ export interface MultiIPO {
 }
 
 const MultiIPODashboard = () => {
-  const [ipos, setIPOs] = useState<MultiIPO[]>([]);
-  const [dematAccounts, setDematAccounts] = useState<DematAccount[]>([]);
-  const [selectedIPOId, setSelectedIPOId] = useState<string>("");
+  const [ipos, setIPOs] = useState<MultiIPO[]>(() => {
+    const saved = localStorage.getItem("ipo_manager_data");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [dematAccounts, setDematAccounts] = useState<DematAccount[]>(() => {
+    const saved = localStorage.getItem("demat_manager_data");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [selectedIPOId, setSelectedIPOId] = useState<string>(() => {
+    return localStorage.getItem("selected_ipo_id") || "";
+  });
+
   const [activeTab, setActiveTab] = useState<string>("all-details");
+
+  useEffect(() => {
+    localStorage.setItem("ipo_manager_data", JSON.stringify(ipos));
+  }, [ipos]);
+
+  useEffect(() => {
+    localStorage.setItem("demat_manager_data", JSON.stringify(dematAccounts));
+  }, [dematAccounts]);
+
+  useEffect(() => {
+    localStorage.setItem("selected_ipo_id", selectedIPOId);
+  }, [selectedIPOId]);
 
   const selectedIPO = useMemo(() => 
     ipos.find(ipo => ipo.id === selectedIPOId), 
@@ -70,15 +103,13 @@ const MultiIPODashboard = () => {
     setIPOs(prev => {
       const filtered = prev.filter(ipo => ipo.id !== ipoId);
       if (selectedIPOId === ipoId) {
-        const newSelected = filtered.length > 0 ? filtered[0].id : "";
-        setSelectedIPOId(newSelected);
-        if (!newSelected) setActiveTab("all-details");
+        setSelectedIPOId("");
+        setActiveTab("all-details");
       }
       return filtered;
     });
   }, [selectedIPOId]);
 
-  // Calculate total stats across all IPOs - memoized for performance
   const totalStats = useMemo(() => {
     const totalParticipants = ipos.reduce((sum, ipo) => sum + ipo.participants.length, 0);
     const totalInvestment = ipos.reduce((sum, ipo) => 
@@ -90,19 +121,19 @@ const MultiIPODashboard = () => {
   }, [ipos]);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
+    <div className="min-h-screen bg-background p-6 flex flex-col justify-between">
+      <div className="max-w-7xl mx-auto space-y-6 w-full">
+        {}
+        <div className="text-center space-y-2 mb-8">
           <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             Multi-IPO Investment Manager
           </h1>
           <p className="text-muted-foreground text-lg">
-            Manage multiple IPO investments simultaneously with detailed tracking
+            Professional dashboard for consolidated equity and asset tracking
           </p>
         </div>
 
-        {/* IPO Selection and Management */}
+        {}
         <Card className="bg-gradient-card shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -150,7 +181,7 @@ const MultiIPODashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Stats */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card className="bg-gradient-card shadow-card">
             <CardContent className="p-4">
@@ -215,7 +246,7 @@ const MultiIPODashboard = () => {
           </Card>
         </div>
 
-        {/* Main Content */}
+        {}
         {ipos.length === 0 ? (
           <Card className="bg-gradient-card shadow-card">
             <CardContent className="p-8 text-center">
@@ -256,6 +287,7 @@ const MultiIPODashboard = () => {
                   setSelectedIPOId(id);
                   setActiveTab("ipo-details");
                 }}
+                onEditIPO={(id, details) => updateIPODetails(id, details)}
                 onDeleteIPO={deleteIPO}
               />
             </TabsContent>
@@ -374,6 +406,59 @@ const MultiIPODashboard = () => {
           </Tabs>
         )}
       </div>
+
+      {}
+      <footer className="mt-20 border-t border-border/40 py-8 bg-background/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
+          
+          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-6">
+            <div className="flex items-center gap-2 text-muted-foreground/80">
+              <Terminal className="h-4 w-4" />
+              <span>v1.0.0</span>
+              <span className="hidden md:inline mx-1 text-border">|</span>
+              <span>© 2025 IPO Manager</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+            {}
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/30 border border-border/50">
+                <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Created By</span>
+                <span className="font-bold bg-gradient-primary bg-clip-text text-transparent flex items-center gap-1.5">
+                    Harsh Makwana
+                </span>
+            </div>
+
+            {}
+            <div className="flex items-center gap-4">
+                <a 
+                href="https://github.com/hrshmakwana"
+                target="_blank" 
+                rel="noreferrer"
+                className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300"
+                >
+                <div className="p-2 rounded-full bg-secondary group-hover:bg-primary/10 transition-colors">
+                    <Github className="h-4 w-4 group-hover:text-primary" />
+                </div>
+                <span className="font-medium group-hover:underline decoration-primary/50 underline-offset-4">GitHub</span>
+                </a>
+
+                <a 
+                href="https://www.linkedin.com/in/hrshmakwana"
+                target="_blank" 
+                rel="noreferrer"
+                className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300"
+                >
+                <div className="p-2 rounded-full bg-secondary group-hover:bg-blue-500/10 transition-colors">
+                    <Linkedin className="h-4 w-4 group-hover:text-blue-500" />
+                </div>
+                <span className="font-medium group-hover:underline decoration-blue-500/50 underline-offset-4">LinkedIn</span>
+                </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+      {}
     </div>
   );
 };

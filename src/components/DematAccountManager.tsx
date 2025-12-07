@@ -41,7 +41,7 @@ export const DematAccountManager = ({ dematAccounts, setDematAccounts, participa
       accountName: newAccount.accountName,
       ownerName: newAccount.ownerName,
       commissionRate: parseFloat(newAccount.commissionRate),
-      totalAmount: 0 // Will be calculated from participants
+      totalAmount: 0
     };
 
     setDematAccounts([...dematAccounts, account]);
@@ -86,7 +86,7 @@ export const DematAccountManager = ({ dematAccounts, setDematAccounts, participa
 
   return (
     <div className="space-y-6">
-      {/* Add New Demat Account */}
+      {}
       <Card className="bg-gradient-card shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export const DematAccountManager = ({ dematAccounts, setDematAccounts, participa
         </CardContent>
       </Card>
 
-      {/* Demat Accounts List */}
+      {}
       <Card className="bg-gradient-card shadow-card">
         <CardHeader>
           <CardTitle>Demat Accounts Overview</CardTitle>

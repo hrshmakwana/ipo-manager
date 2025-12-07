@@ -18,7 +18,7 @@ export interface DematAccount {
   id: string;
   accountName: string;
   ownerName: string;
-  commissionRate: number; // percentage
+  commissionRate: number;
   totalAmount: number;
 }
 
@@ -36,7 +36,7 @@ export interface IPOResult {
   sellingPrice?: number;
   commissionDeducted: number;
   finalAmount: number;
-  participantIds: string[]; // All participants in this demat account
+  participantIds: string[];
 }
 
 const IPODashboard = () => {
@@ -53,7 +53,7 @@ const IPODashboard = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
+        {}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             IPO Investment Manager
@@ -73,7 +73,7 @@ const IPODashboard = () => {
           )}
         </div>
 
-        {/* Quick Stats */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-gradient-card shadow-card">
             <CardContent className="p-4">
@@ -126,7 +126,7 @@ const IPODashboard = () => {
           </Card>
         </div>
 
-        {/* Main Content */}
+        {}
         <Tabs defaultValue="ipo-details" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="ipo-details">IPO Details</TabsTrigger>

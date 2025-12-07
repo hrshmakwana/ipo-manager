@@ -11,7 +11,6 @@ interface ConsolidatedParticipantViewProps {
 }
 
 export const ConsolidatedParticipantView = ({ ipos, dematAccounts }: ConsolidatedParticipantViewProps) => {
-  // Get all unique participants across all IPOs
   const allParticipants = new Map();
   
   ipos.forEach(ipo => {

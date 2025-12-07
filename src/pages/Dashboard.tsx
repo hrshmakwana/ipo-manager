@@ -1,7 +1,7 @@
 import MultiIPODashboard from "@/components/MultiIPODashboard";
 
-const Index = () => {
+const Dashboard = () => {
   return <MultiIPODashboard />;
 };
 
-export default Index;
+export default Dashboard;

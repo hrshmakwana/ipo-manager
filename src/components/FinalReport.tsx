@@ -23,7 +23,6 @@ interface FinalReportProps {
 }
 
 export const FinalReport = ({ participants, dematAccounts, ipoResults, ipoDetails }: FinalReportProps) => {
-  // Calculate overall statistics
   const totalInvestment = participants.reduce((sum, p) => sum + p.investmentAmount, 0);
   const totalFinalAmount = ipoResults.reduce((sum, r) => sum + r.finalAmount, 0);
   const totalCommission = ipoResults.reduce((sum, r) => sum + r.commissionDeducted, 0);
@@ -31,7 +30,6 @@ export const FinalReport = ({ participants, dematAccounts, ipoResults, ipoDetail
   const allottedResults = ipoResults.filter(r => r.isAllotted);
   const notAllottedResults = ipoResults.filter(r => !r.isAllotted);
 
-  // Helper functions
   const getDematAccountName = (accountId: string) => {
     const account = dematAccounts.find(acc => acc.id === accountId);
     return account ? account.accountName : "Unknown";
@@ -59,21 +57,34 @@ export const FinalReport = ({ participants, dematAccounts, ipoResults, ipoDetail
     const accountInvestment = getAccountInvestment(result.dematAccountId);
     const accountParticipants = participants.filter(p => p.dematAccount === result.dematAccountId);
     
-    return accountParticipants.map(participant => {
-      const share = participant.investmentAmount / accountInvestment;
-      const individualReturn = result.finalAmount * share;
-      const individualProfit = individualReturn - participant.investmentAmount;
+    const toFixedNumber = (num: number) => Number(Math.round(parseFloat(num + 'e2')) + 'e-2');
+
+    let distributedAmount = 0;
+
+    return accountParticipants.map((participant, index) => {
+
+      const shareRatio = participant.investmentAmount / accountInvestment;
+      
+      let individualReturn;
+
+      if (index === accountParticipants.length - 1) {
+        individualReturn = toFixedNumber(result.finalAmount - distributedAmount);
+      } else {
+        individualReturn = toFixedNumber(result.finalAmount * shareRatio);
+        distributedAmount += individualReturn;
+      }
+
+      const individualProfit = toFixedNumber(individualReturn - participant.investmentAmount);
       
       return {
         participant,
         individualReturn,
         individualProfit,
-        share
+        share: shareRatio
       };
     });
   };
 
-  // Generate detailed breakdown for each participant
   const participantBreakdown = ipoResults.flatMap(result => 
     calculateIndividualReturns(result).map(calc => ({
       ...calc,

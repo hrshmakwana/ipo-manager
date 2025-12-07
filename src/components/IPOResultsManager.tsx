@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, TrendingUp, Calculator } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { CheckCircle, XCircle, TrendingUp, Calculator, Edit, Trash2, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Participant, DematAccount, IPOResult, IPODetails } from "./IPODashboard";
 
@@ -19,100 +20,120 @@ interface IPOResultsManagerProps {
 }
 
 export const IPOResultsManager = ({ participants, dematAccounts, ipoResults, setIPOResults, ipoDetails }: IPOResultsManagerProps) => {
+  const { toast } = useToast();
+  
   const [newResult, setNewResult] = useState({
     dematAccountId: "",
     isAllotted: "",
     sellingPrice: ""
   });
-  const { toast } = useToast();
 
-  const addIPOResult = () => {
-    if (!newResult.dematAccountId || !newResult.isAllotted) {
-      toast({
-        title: "Missing Information",
-        description: "Please select a demat account and allotment status.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingResult, setEditingResult] = useState<IPOResult | null>(null);
+  const [editForm, setEditForm] = useState({
+    isAllotted: "false",
+    sellingPrice: ""
+  });
 
-    const dematAccount = dematAccounts.find(acc => acc.id === newResult.dematAccountId);
-    if (!dematAccount) return;
+  const calculateFinancials = (dematAccountId: string, isAllottedStr: string, sellingPriceStr: string) => {
+    const dematAccount = dematAccounts.find(acc => acc.id === dematAccountId);
+    if (!dematAccount) return null;
 
-    // Get all participants in this demat account
-    const accountParticipants = participants.filter(p => p.dematAccount === newResult.dematAccountId);
+    const accountParticipants = participants.filter(p => p.dematAccount === dematAccountId);
+    const toFixedNumber = (num: number) => Number(Math.round(parseFloat(num + 'e2')) + 'e-2');
     const totalInvestment = accountParticipants.reduce((sum, p) => sum + p.investmentAmount, 0);
     
-    const isAllotted = newResult.isAllotted === "true";
+    const isAllotted = isAllottedStr === "true";
     let finalAmount = 0;
     let commissionDeducted = 0;
+    let sellingPrice = undefined;
 
-    if (isAllotted && newResult.sellingPrice) {
-      // Calculate total lots and shares for this account
+    if (isAllotted && sellingPriceStr) {
       const totalLots = Math.floor(totalInvestment / ipoDetails.lotPrice);
       const usedInvestment = totalLots * ipoDetails.lotPrice;
-      const remainderInvestment = totalInvestment - usedInvestment; // refunded if unused
-      const totalShares = totalLots * ipoDetails.sharesPerLot;
-      const sellingPrice = parseFloat(newResult.sellingPrice);
-      const totalSaleValue = totalShares * sellingPrice;
-      const grossProfit = totalSaleValue - usedInvestment;
+      const remainderInvestment = totalInvestment - usedInvestment; 
       
-      // Commission calculation - check if commission rate exists
+      const totalShares = totalLots * ipoDetails.sharesPerLot;
+      sellingPrice = parseFloat(sellingPriceStr);
+      
+      const totalSaleValue = toFixedNumber(totalShares * sellingPrice);
+      const grossProfit = toFixedNumber(totalSaleValue - usedInvestment);
+      
       const commissionRate = dematAccount.commissionRate || 0;
+      
       if (grossProfit > 0 && commissionRate > 0) {
-        commissionDeducted = (grossProfit * commissionRate) / 100;
+        commissionDeducted = toFixedNumber((grossProfit * commissionRate) / 100);
       }
       
-      // Final amount includes sale proceeds + any unused funds, minus commission
-      finalAmount = totalSaleValue + remainderInvestment - commissionDeducted;
+      finalAmount = toFixedNumber((totalSaleValue + remainderInvestment) - commissionDeducted);
     } else {
-      // Not allotted - return full investment (no commission on non-allotment)
       finalAmount = totalInvestment;
       commissionDeducted = 0;
     }
 
-    const result: IPOResult = {
-      id: Date.now().toString(),
-      dematAccountId: newResult.dematAccountId,
+    return {
       isAllotted,
-      sellingPrice: isAllotted ? parseFloat(newResult.sellingPrice) : undefined,
+      sellingPrice,
       commissionDeducted,
       finalAmount,
       participantIds: accountParticipants.map(p => p.id)
     };
+  };
+  const addIPOResult = () => {
+    if (!newResult.dematAccountId || !newResult.isAllotted) {
+      toast({ title: "Missing Information", description: "Select account and status.", variant: "destructive" });
+      return;
+    }
+
+    const calculation = calculateFinancials(newResult.dematAccountId, newResult.isAllotted, newResult.sellingPrice);
+    if (!calculation) return;
+
+    const result: IPOResult = {
+      id: Date.now().toString(),
+      dematAccountId: newResult.dematAccountId,
+      ...calculation
+    };
 
     setIPOResults([...ipoResults, result]);
     setNewResult({ dematAccountId: "", isAllotted: "", sellingPrice: "" });
-    
-    toast({
-      title: "Result Added",
-      description: `IPO result for ${dematAccount.accountName} has been recorded.`,
-      variant: "default"
+    toast({ title: "Result Recorded", description: "IPO result saved successfully.", variant: "default" });
+  };
+  const handleEditClick = (result: IPOResult) => {
+    setEditingResult(result);
+    setEditForm({
+      isAllotted: result.isAllotted ? "true" : "false",
+      sellingPrice: result.sellingPrice?.toString() || ""
     });
+    setIsEditOpen(true);
   };
 
-  const getDematAccountName = (accountId: string) => {
-    const account = dematAccounts.find(acc => acc.id === accountId);
-    return account ? account.accountName : "Unknown";
+  const saveEdit = () => {
+    if (!editingResult) return;
+
+    const calculation = calculateFinancials(editingResult.dematAccountId, editForm.isAllotted, editForm.sellingPrice);
+    if (!calculation) return;
+
+    const updatedResult: IPOResult = {
+      ...editingResult,
+      ...calculation
+    };
+
+    setIPOResults(ipoResults.map(r => r.id === editingResult.id ? updatedResult : r));
+    
+    setIsEditOpen(false);
+    setEditingResult(null);
+    toast({ title: "Result Updated", description: "The result and financial calculations have been updated.", variant: "default" });
   };
 
-  const getDematAccountOwner = (accountId: string) => {
-    const account = dematAccounts.find(acc => acc.id === accountId);
-    return account ? account.ownerName : "Unknown";
+  const handleDelete = (id: string) => {
+    setIPOResults(ipoResults.filter(r => r.id !== id));
+    toast({ title: "Deleted", description: "Result record removed.", variant: "default" });
   };
 
-  const getAccountTotal = (accountId: string) => {
-    return participants
-      .filter(p => p.dematAccount === accountId)
-      .reduce((sum, p) => sum + p.investmentAmount, 0);
-  };
-
-  const getParticipantNames = (participantIds: string[]) => {
-    return participantIds
-      .map(id => participants.find(p => p.id === id)?.name)
-      .filter(Boolean)
-      .join(", ");
-  };
+  const getDematAccountName = (id: string) => dematAccounts.find(acc => acc.id === id)?.accountName || "Unknown";
+  const getDematAccountOwner = (id: string) => dematAccounts.find(acc => acc.id === id)?.ownerName || "Unknown";
+  const getAccountTotal = (id: string) => participants.filter(p => p.dematAccount === id).reduce((sum, p) => sum + p.investmentAmount, 0);
+  const getParticipantNames = (ids: string[]) => ids.map(id => participants.find(p => p.id === id)?.name).filter(Boolean).join(", ");
 
   const unprocessedAccounts = dematAccounts.filter(
     account => !ipoResults.some(r => r.dematAccountId === account.id) &&
@@ -121,7 +142,7 @@ export const IPOResultsManager = ({ participants, dematAccounts, ipoResults, set
 
   return (
     <div className="space-y-6">
-      {/* Add IPO Result */}
+      {}
       <Card className="bg-gradient-card shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -132,37 +153,23 @@ export const IPOResultsManager = ({ participants, dematAccounts, ipoResults, set
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="demat-account">Demat Account</Label>
-              <Select
-                value={newResult.dematAccountId}
-                onValueChange={(value) => setNewResult({ ...newResult, dematAccountId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select demat account" />
-                </SelectTrigger>
+              <Label>Demat Account</Label>
+              <Select value={newResult.dematAccountId} onValueChange={(v) => setNewResult({ ...newResult, dematAccountId: v })}>
+                <SelectTrigger><SelectValue placeholder="Select demat account" /></SelectTrigger>
                 <SelectContent>
-                  {unprocessedAccounts.map((account) => {
-                    const total = getAccountTotal(account.id);
-                    const participantCount = participants.filter(p => p.dematAccount === account.id).length;
-                    return (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.ownerName} - {account.accountName} - ₹{total.toLocaleString()} ({participantCount} participants)
-                      </SelectItem>
-                    );
-                  })}
+                  {unprocessedAccounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.ownerName} - {acc.accountName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="allotment">Allotment Status</Label>
-              <Select
-                value={newResult.isAllotted}
-                onValueChange={(value) => setNewResult({ ...newResult, isAllotted: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
+              <Label>Allotment Status</Label>
+              <Select value={newResult.isAllotted} onValueChange={(v) => setNewResult({ ...newResult, isAllotted: v })}>
+                <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="true">Allotted</SelectItem>
                   <SelectItem value="false">Not Allotted</SelectItem>
@@ -172,51 +179,38 @@ export const IPOResultsManager = ({ participants, dematAccounts, ipoResults, set
             
             {newResult.isAllotted === "true" && (
               <div className="space-y-2">
-                <Label htmlFor="price">Selling Price (₹)</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  placeholder="0.00"
-                  step="0.01"
-                  value={newResult.sellingPrice}
-                  onChange={(e) => setNewResult({ ...newResult, sellingPrice: e.target.value })}
-                />
+                <Label>Selling Price (₹)</Label>
+                <Input type="number" placeholder="0.00" value={newResult.sellingPrice} onChange={(e) => setNewResult({ ...newResult, sellingPrice: e.target.value })} />
               </div>
             )}
             
             <div className="flex items-end">
-              <Button onClick={addIPOResult} className="w-full bg-gradient-primary text-primary-foreground">
-                Record Result
-              </Button>
+              <Button onClick={addIPOResult} className="w-full bg-gradient-primary">Record Result</Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Results List */}
+      {}
       <Card className="bg-gradient-card shadow-card">
-        <CardHeader>
-          <CardTitle>IPO Results Summary</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>IPO Results Summary</CardTitle></CardHeader>
         <CardContent>
           {ipoResults.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No IPO results recorded yet. Add results above.</p>
-            </div>
+            <div className="text-center py-8 text-muted-foreground"><TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No results recorded yet.</p></div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Demat Account</TableHead>
-                  <TableHead>Account Owner</TableHead>
+                  <TableHead>Owner</TableHead>
                   <TableHead>Participants</TableHead>
                   <TableHead>Total Investment</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sale Price</TableHead>
                   <TableHead>Commission</TableHead>
                   <TableHead>Final Amount</TableHead>
-                  <TableHead>Profit/Loss</TableHead>
+                  <TableHead>P&L</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,52 +220,30 @@ export const IPOResultsManager = ({ participants, dematAccounts, ipoResults, set
                   
                   return (
                     <TableRow key={result.id}>
-                      <TableCell className="font-medium">
-                        {getDematAccountName(result.dematAccountId)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {getDematAccountOwner(result.dematAccountId)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {getParticipantNames(result.participantIds)}
-                      </TableCell>
-                      <TableCell className="text-accent font-semibold">
-                        ₹{totalInvestment.toLocaleString()}
-                      </TableCell>
+                      <TableCell className="font-medium">{getDematAccountName(result.dematAccountId)}</TableCell>
+                      <TableCell className="text-muted-foreground">{getDematAccountOwner(result.dematAccountId)}</TableCell>
+                      <TableCell className="text-sm max-w-[150px] truncate">{getParticipantNames(result.participantIds)}</TableCell>
+                      <TableCell>₹{totalInvestment.toLocaleString()}</TableCell>
                       <TableCell>
                         <Badge variant={result.isAllotted ? "default" : "secondary"} className="flex items-center gap-1 w-fit">
-                          {result.isAllotted ? (
-                            <>
-                              <CheckCircle className="h-3 w-3" />
-                              Allotted
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-3 w-3" />
-                              Not Allotted
-                            </>
-                          )}
+                          {result.isAllotted ? <><CheckCircle className="h-3 w-3" /> Allotted</> : <><XCircle className="h-3 w-3" /> Not Allotted</>}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {result.isAllotted && result.sellingPrice ? (
-                          <div className="text-sm">
-                            ₹{result.sellingPrice}/share
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">N/A</span>
-                        )}
+                      <TableCell>{result.isAllotted && result.sellingPrice ? `₹${result.sellingPrice}` : "-"}</TableCell>
+                      <TableCell className="text-warning">₹{result.commissionDeducted.toLocaleString()}</TableCell>
+                      <TableCell className="font-semibold">₹{result.finalAmount.toLocaleString()}</TableCell>
+                      <TableCell className={`font-semibold ${profitLoss >= 0 ? 'text-profit' : 'text-loss'}`}>
+                        {profitLoss >= 0 ? '+' : ''}₹{profitLoss.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-warning font-semibold">
-                        ₹{result.commissionDeducted.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        ₹{result.finalAmount.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`font-semibold ${profitLoss >= 0 ? 'text-profit' : 'text-loss'}`}>
-                          {profitLoss >= 0 ? '+' : ''}₹{profitLoss.toLocaleString()}
-                        </span>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleEditClick(result)}>
+                                <Edit className="h-4 w-4 text-blue-500" />
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(result.id)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -281,6 +253,44 @@ export const IPOResultsManager = ({ participants, dematAccounts, ipoResults, set
           )}
         </CardContent>
       </Card>
+
+      {}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Result</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Status</Label>
+                <Select value={editForm.isAllotted} onValueChange={(v) => setEditForm({ ...editForm, isAllotted: v })}>
+                    <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="true">Allotted</SelectItem>
+                        <SelectItem value="false">Not Allotted</SelectItem>
+                    </SelectContent>
+                </Select>
+             </div>
+             
+             {editForm.isAllotted === "true" && (
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Selling Price</Label>
+                    <Input 
+                        type="number" 
+                        value={editForm.sellingPrice} 
+                        onChange={(e) => setEditForm({ ...editForm, sellingPrice: e.target.value })} 
+                        className="col-span-3"
+                    />
+                 </div>
+             )}
+          </div>
+          <DialogFooter>
+            <Button onClick={saveEdit} className="bg-gradient-primary">
+                <Save className="h-4 w-4 mr-2" /> Update Result
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
